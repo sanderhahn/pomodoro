@@ -1,0 +1,305 @@
+<html>
+<title>Pomodoro</title>
+<style>
+body {
+	margin: 0;
+}
+* {
+	box-sizing: border-box;
+}
+.container {
+	display: inline-block;	
+	margin: 10px 20px;
+}
+.clock {
+	font-family: sans-serif;
+	font-size: 200px;
+	background-color: gray;
+	color: white;
+	border-radius: 10px;
+	padding: 0 20px;
+	text-align: center;
+	margin: 10px 0;
+}
+.running {
+	background-color: green;
+}
+.break {
+	background-color: red;
+}
+.pause {
+	background-color: gray;	
+}
+.pomodoros {
+	text-align: center;
+}
+.pomodoros span {
+	display: inline-block;
+	background-color: lightgrey;
+	width: 15px;
+	height: 15px;
+	border-radius: 100%;
+	margin: 5px 15px 5px 0;
+}
+.pomodoros span.break {
+	background-color: red;
+}
+.pomodoros span.done {
+	background-color: green;
+}
+.controls {
+}
+.controls button {
+	font-size: 20px;
+	padding: 5px 10px;
+	background-color: lightgrey;
+	color: white;
+	border-radius: 5px;
+	border-width: 0;
+	word-spacing: 0em;
+}
+.pull-right {
+	float: right;
+}
+</style>
+<div class="container">
+<div class="pomodoros">
+</div>
+<div class="clock">00:00</div>
+<div class="controls">
+	<button class="play">&#9654;</button>
+	<button class="reset pull-right">&#8634;</button>
+</div>
+</div>
+<script>
+function toggleClass(e, c, t) {
+	var classes = e.className ? e.className.split(/\s+/) : []
+	var i = classes.indexOf(c)
+	if(t) {
+		if(i == -1) {
+			classes.push(c)
+			e.className = classes.join(' ')
+		}
+	} else {
+		if(i >= 0) {
+			classes.splice(i, 1)
+			e.className = classes.join(' ')
+		}
+	}
+}
+
+function Clock() {
+	var div = document.getElementsByClassName('clock')[0]
+	var text = div.firstChild
+	this.text = text
+	this.div = div
+}
+
+Clock.prototype.display = function(d) {
+	this.text.nodeValue = d
+}
+
+Clock.prototype.running = function(b) {
+	if(b === null) {
+		toggleClass(this.div, 'running', false)
+		toggleClass(this.div, 'break', false)		
+	} else if(b) {
+		toggleClass(this.div, 'running', true)
+		toggleClass(this.div, 'break', false)
+	} else {
+		toggleClass(this.div, 'running', false)
+		toggleClass(this.div, 'break', true)
+	}
+}
+
+Clock.prototype.setPause = function(p) {
+	toggleClass(this.div, 'pause', p)	
+}
+
+function pad(i) {
+	return i < 10 ? '0'+i : i
+}
+
+function Pomodoro() {
+	this.schedule = [
+		'25:00 05:00 25:00 05:00 25:00 05:00 25:00 20:00',
+		'25:00 05:00 25:00 05:00 25:00 05:00 25:00 35:00',
+		'25:00 05:00 25:00 05:00 25:00 05:00 25:00 60:00'
+	].join(' ').split(' ')
+
+	var progess = document.getElementsByClassName('pomodoros')[0]
+	for(var i = 0; i < this.schedule.length>>1; i++) {
+		progess.appendChild(document.createElement('span'))
+	}
+
+	this.clock = new Clock()
+	this.pomodoros = 0
+	this.progress()
+
+	this.load()
+
+	this.button = document.getElementsByClassName('play')[0]
+	this.button.onclick = function() {
+		if(! this.isFinished()) {
+			this.setPause(! this.pause)
+		}
+	}.bind(this)
+
+	this.setPause(true)
+	this.button.focus()
+
+	var reset = document.getElementsByClassName('reset')[0]
+	reset.onclick = function() {
+		this.setPause(true)
+		this.clear()
+		this.load()
+	}.bind(this)
+}
+
+Pomodoro.prototype.isFinished = function() {
+	return (this.pomodoros == this.schedule.length) && this.t === 0
+}
+
+Pomodoro.prototype.isBreak = function() {
+	return (this.pomodoros & 1) != 0
+}
+
+Pomodoro.prototype.progress = function() {
+	var p = this.pomodoros >> 1
+	var isbreak = this.isBreak()
+	var s = document.getElementsByClassName('pomodoros')[0].children
+	for(var i = 0; i < s.length; i++) {
+		toggleClass(s[i], 'break', i === p && isbreak)
+		toggleClass(s[i], 'done', i < p)
+	}
+}
+
+Pomodoro.prototype.setPause = function(b) {
+	this.pause = b
+	this.button.innerHTML = b ? '&#9654;' : '&#x275a; &#x275a;'
+	this.clock.setPause(b)
+	this.clock.running(b ? null : ! this.isBreak())
+	this.display()
+	if(b) {
+		if(this.id) {
+			clearInterval(this.id)
+		}
+	} else {
+		this.n = null
+		this.id = setInterval(this.tick.bind(this), 1000/60)
+	}
+}
+
+Pomodoro.prototype.count = function() {
+	return count = 1 + (this.pomodoros >> 1)
+}
+
+Pomodoro.prototype.run = function() {
+
+	this.callback = function() {
+		this.pomodoros++
+		this.store()
+		this.progress()
+		if(this.pomodoros < this.schedule.length) {
+			this.display()
+			this.setPause(true)
+			if(! this.isBreak()) {
+				alert('Starting on pomodoro ' + this.count())
+			} else {
+				alert('Have a break for ' + this.schedule[this.pomodoros] + ' minutes')
+			}
+			this.setPause(false)
+			go()
+		} else {
+			this.setPause(true)
+			alert('Finished, have a beer :)')
+		}
+	}.bind(this)
+
+	var go = function() {
+		if(! this.isFinished()) {
+			if(this.t === 0) {
+				this.setTime(this.schedule[this.pomodoros])
+			}
+			this.display()
+		}
+	}.bind(this)
+
+	go()
+}
+
+Pomodoro.prototype.display = function() {
+	var time = this.getTime()
+	var isbreak = this.isBreak()
+	this.clock.display(time)
+	this.clock.running(! isbreak)
+	
+	if(this.isFinished()) {
+		document.title = 'finished ' + this.count() + ' pomodoro :)'
+	} else {
+		var min = Math.ceil(this.t/1000/60)
+		document.title = min + 'm ' + (this.pause ? ' paused' : (isbreak ? ' break' : ' working')) + ' on ' + this.count()
+	}
+}
+
+Pomodoro.prototype.tick = function() {
+	var n = Date.now()
+	if(this.n !== null) {
+		this.t = Math.max(0, this.t - (n - this.n))
+	}
+	this.n = n
+	this.display()
+	this.store()
+	if(this.t === 0) {
+		this.clock.setPause(true)
+		this.callback()
+		this.clock.setPause(false)
+	}
+}
+
+Pomodoro.prototype.setTime = function(time) {
+	var t = time.split(':')
+	this.t = ((parseInt(t[0])*60) + parseInt(t[1])) * 1000
+}
+
+Pomodoro.prototype.getTime = function() {
+	var t = Math.ceil(this.t/1000)
+	var m = Math.floor(t/60)
+	var s = Math.floor(t%60)
+	return pad(m) + ':' + pad(s)	
+}
+
+Pomodoro.prototype.store = function() {
+	localStorage.pomodoro = JSON.stringify({
+		pomodoros: this.pomodoros,
+		time: this.getTime()
+	})
+}
+
+Pomodoro.prototype.load = function() {
+	if(localStorage.pomodoro !== undefined) {
+		var s = JSON.parse(localStorage.pomodoro)
+		this.pomodoros = parseInt(s.pomodoros)
+		this.setTime(s.time)
+
+	} else {
+		this.pomodoros = 0
+		this.setTime(this.schedule[this.pomodoros])
+	}
+
+	this.progress()
+	this.display()
+}
+
+Pomodoro.prototype.clear = function() {
+	delete localStorage.pomodoro
+}
+
+function init() {
+	var pomodoro = new Pomodoro()
+	pomodoro.run()
+}
+
+window.onload = init
+</script>
+</html>
